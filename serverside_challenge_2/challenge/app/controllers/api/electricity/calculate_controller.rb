@@ -1,7 +1,6 @@
 class Api::Electricity::CalculateController < ApplicationController
   def create
     @prices = price_calculate
-
     if @prices[:errors].present?
       render json: @prices[:errors], status: :bad_request
     else
