@@ -180,11 +180,12 @@ RSpec.describe BasicPrice, type: :model do
       end
 
       it 'amperageに対応するプランの料金を取得できる' do
-        res = BasicPrice.calc_prices(10)
+        plans_hash = Plan.send(:initial_plans_hash)
+        res = BasicPrice.calc_prices(plans_hash, 10)
 
         expect(res.keys.size).to eq 2
-        expect(res[plan1_provider1.id]).to eq 110.00
-        expect(res[plan2_provider1.id]).to eq 210.00
+        expect(res[plan1_provider1.id][:price]).to eq 110.00
+        expect(res[plan2_provider1.id][:price]).to eq 210.00
       end
     end
   end

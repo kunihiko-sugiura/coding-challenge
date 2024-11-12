@@ -18,13 +18,17 @@ class MeasuredRate < ApplicationRecord
   end
 
   class << self
-    def calc_prices(electricity_usage_kwh)
-      rows = MeasuredRate.where("electricity_usage_min <= ?", electricity_usage_kwh)
-      rows.inject({}) do |sum, row|
-        sum[row.plan_id] ||= { price: 0 }
-        sum[row.plan_id][:price] += row.calc_row_price(electricity_usage_kwh)
+    def calc_prices(plans_hash, electricity_usage_kwh)
+      rows = MeasuredRate.where("electricity_usage_min <= ?", electricity_usage_kwh).where(plan_id: plans_hash.keys)
+      summary = rows.inject({}) do |sum, row|
+        sum[row.plan_id] ||= 0
+        sum[row.plan_id] += row.calc_row_price(electricity_usage_kwh)
         sum
       end
+      plans_hash.each do |key, item|
+        item[:price] += summary[key] if summary[key].present?
+      end
+      plans_hash
     end
 
     def validate_electricity_usage?(electricity_usage)

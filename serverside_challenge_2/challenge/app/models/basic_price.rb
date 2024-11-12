@@ -11,12 +11,17 @@ class BasicPrice < ApplicationRecord
   validates :plan, presence: true, uniqueness: { scope: :amperage }
 
   class << self
-    def calc_prices(amperage)
-      rows = BasicPrice.where(amperage: amperage)
-      rows.inject({}) do |sum, row|
-        sum[row.plan_id] = row.price
-        sum
+    def calc_prices(plans_hash, amperage)
+      exists_ids = {}
+      rows = BasicPrice.where(amperage: amperage).where(plan_id: plans_hash.keys)
+      rows.each do |row|
+        exists_ids[row.plan_id] = true
+        plans_hash[row.plan_id][:price] += row.price
       end
+      plans_hash.keys.each do |key|
+        plans_hash.delete(key) if exists_ids[key].nil?
+      end
+      plans_hash
     end
 
     def check_amperage?(amperage)

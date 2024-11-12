@@ -9,7 +9,7 @@ class Plan < ApplicationRecord
   validates :provider, presence: true, uniqueness: { scope: :name }
 
   class << self
-    def calc_prices(amperage, electricity_usage_kwh)
+    def calc_plans(amperage, electricity_usage_kwh)
       errors = check_parameters(amperage, electricity_usage_kwh)
       if errors.present?
         return { errors: {
@@ -17,26 +17,36 @@ class Plan < ApplicationRecord
           details: errors
         } }
       end
-
-      plans = Plan.all.includes(:provider)
-      basic_prices_hash = BasicPrice.calc_prices(amperage)
-      measured_rates_hash = MeasuredRate.calc_prices(electricity_usage_kwh)
-      response = plans.filter_map do |plan|
-        basic_price = basic_prices_hash[plan.id]
-        next if basic_price.nil?
-
-        measured_rate_price = measured_rates_hash[plan.id]&.[](:price) || 0
-        price = (basic_price + measured_rate_price).floor
-        {
-          plan: plan,
-          provider: plan.provider,
-          price: price
-        }
+      plans_hash = initial_plans_hash
+      calc_items = [
+        { klass: Plan, value: nil },
+        { klass: BasicPrice, value: amperage },
+        { klass: MeasuredRate, value: electricity_usage_kwh }
+      ]
+      calc_items.each do |item|
+        plans_hash = item[:klass].calc_prices(plans_hash, item[:value])
       end
+      response = plans_hash.values.map do |item|
+        item[:price] = item[:price].floor;
+        item
+      end.sort_by { |item| [ item[:provider].id, item[:plan].id ] }
+
       { plans: response }
     end
 
+    def calc_prices(data, _)
+      # 現状でPlanの計算は行わないため、そのまま返す
+      data
+    end
+
     private
+
+    def initial_plans_hash
+      plans = Plan.all.includes(:provider)
+      plans.each_with_object({}) do |plan, hash|
+        hash[plan.id] = { plan: plan, provider: plan.provider, price: 0 }
+      end
+    end
 
     def check_parameters(amperage, electricity_usage_kwh)
       errors = [

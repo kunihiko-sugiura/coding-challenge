@@ -110,6 +110,13 @@ RSpec.describe Plan, type: :model do
   end
 
   describe 'Methods' do
+    let(:provider1) { create(:provider, name: 'provider1') }
+    let(:provider2) { create(:provider, name: 'provider2') }
+    # plan1
+    let(:plan1_provider1) { create(:plan, name: 'plan1', provider: provider1) }
+    # plan2
+    let(:plan2_provider2) { create(:plan, name: 'plan2', provider: provider2) }
+
     describe 'check_parameters' do
       context 'amperage' do
         it '正常な場合、レスポンスにエラーが含まれないこと' do
@@ -134,15 +141,43 @@ RSpec.describe Plan, type: :model do
       end
     end
 
+    describe 'initial_plans_hash' do
+      it 'プランのハッシュが返されること' do
+        plan1_provider1
+        plan2_provider2
+        res = Plan.send(:initial_plans_hash)
+
+        expect(res.size).to eq 2
+        expect(res[plan1_provider1.id][:plan]).to eq plan1_provider1
+        expect(res[plan1_provider1.id][:provider]).to eq provider1
+        expect(res[plan1_provider1.id][:price]).to eq 0
+
+        expect(res[plan2_provider2.id][:plan]).to eq plan2_provider2
+        expect(res[plan2_provider2.id][:provider]).to eq provider2
+        expect(res[plan2_provider2.id][:price]).to eq 0
+      end
+    end
+
     describe 'calc_prices' do
-      let(:provider1) { create(:provider, name: 'provider1') }
-      let(:provider2) { create(:provider, name: 'provider2') }
+      it 'Planの計算は行わないため、そのまま返すこと' do
+        plan1_provider1
+        plan2_provider2
+        plans_hash = Plan.send(:initial_plans_hash)
+
+        res = Plan.calc_prices(plans_hash, nil)
+        expect(res.size).to eq 2
+        expect(res[plan1_provider1.id][:plan]).to eq plan1_provider1
+        expect(res[plan1_provider1.id][:price]).to eq 0
+        expect(res[plan2_provider2.id][:plan]).to eq plan2_provider2
+        expect(res[plan2_provider2.id][:price]).to eq 0
+      end
+    end
+
+    describe 'calc_plans' do
       # plan1
-      let(:plan1_provider1) { create(:plan, name: 'plan1', provider: provider1) }
       let(:plan1_amp_10) { create(:basic_price, plan: plan1_provider1, amperage: 10, price: 100.01) }
       let(:plan1_rate_0) { create(:measured_rate, plan: plan1_provider1, electricity_usage_min: 0, electricity_usage_max: nil, price: 10.01) }
       # plan2
-      let(:plan2_provider2) { create(:plan, name: 'plan2', provider: provider2) }
       let(:plan2_amp_10) { create(:basic_price, plan: plan2_provider2, amperage: 10, price: 200.01) }
       let(:plan2_rate_0) { create(:measured_rate, plan: plan2_provider2, electricity_usage_min: 0, electricity_usage_max: nil, price: 20.03) }
 
@@ -155,7 +190,7 @@ RSpec.describe Plan, type: :model do
 
       context 'エラーの場合' do
         it 'レスポンスにエラーが設定されること' do
-          res = Plan.calc_prices(0, 1)
+          res = Plan.calc_plans(0, 1)
           expect(res[:errors][:message]).to eq 'リクエストパラメーターが正しくありません。'
           expect(res[:errors][:details].size).to eq 1
           expect(res[:errors][:details][0][:field]).to eq 'amperage'
@@ -165,7 +200,7 @@ RSpec.describe Plan, type: :model do
 
       context '正常な場合' do
         it 'プランの料金が集計されること' do
-          res = Plan.calc_prices(10, 1)
+          res = Plan.calc_plans(10, 1)
 
           expect(res[:errors]).to be_nil
           expect(res[:plans].size).to eq 2
@@ -182,7 +217,7 @@ RSpec.describe Plan, type: :model do
 
         it '存在しないプランを指定した場合、レスポンスに含まれないこと' do
           plan2_amp_10.update!(amperage: 20)
-          res = Plan.calc_prices(10, 1)
+          res = Plan.calc_plans(10, 1)
 
           expect(res[:errors]).to be_nil
           expect(res[:plans].size).to eq 1

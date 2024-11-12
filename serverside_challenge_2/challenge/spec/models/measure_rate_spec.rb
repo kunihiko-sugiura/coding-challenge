@@ -279,6 +279,7 @@ RSpec.describe MeasuredRate, type: :model do
     let(:plan1_provider1) { create(:plan, name: 'plan1', provider: provider1) }
     let(:plan2_provider1) { create(:plan, name: 'plan2', provider: provider1) }
     let(:plan3_provider2) { create(:plan, name: 'plan3', provider: provider2) }
+    let(:plans_hash) { Plan.send(:initial_plans_hash) }
 
     describe 'validate_electricity_usage?' do
       it '整数の場合エラーではないこと' do
@@ -392,7 +393,7 @@ RSpec.describe MeasuredRate, type: :model do
         end
 
         it '価格計算が妥当であること' do
-          res = MeasuredRate.calc_prices(1000)
+          res = MeasuredRate.calc_prices(plans_hash, 1000)
 
           expect(res.size).to eq 1
           expect(res[plan3_provider2.id][:price]).to eq 10000
@@ -408,14 +409,14 @@ RSpec.describe MeasuredRate, type: :model do
 
         context '1段階目の場合' do
           it '最小値の場合、価格計算が妥当であること' do
-            res = MeasuredRate.calc_prices(1)
+            res = MeasuredRate.calc_prices(plans_hash, 1)
 
             expect(res.size).to eq 1
             expect(res[plan1_provider1.id][:price]).to eq 19.88
           end
 
           it '最大値の場合、価格計算が妥当であること' do
-            res = MeasuredRate.calc_prices(120)
+            res = MeasuredRate.calc_prices(plans_hash, 120)
 
             expect(res.size).to eq 1
             expect(res[plan1_provider1.id][:price]).to eq 2385.6
@@ -424,14 +425,14 @@ RSpec.describe MeasuredRate, type: :model do
 
         context '2段階目の場合' do
           it '最小値の場合、価格計算が妥当であること' do
-            res = MeasuredRate.calc_prices(121)
+            res = MeasuredRate.calc_prices(plans_hash, 121)
 
             expect(res.size).to eq 1
             expect(res[plan1_provider1.id][:price]).to eq 2385.6 + 26.48
           end
 
           it '最大値の場合、価格計算が妥当であること' do
-            res = MeasuredRate.calc_prices(300)
+            res = MeasuredRate.calc_prices(plans_hash, 300)
 
             expect(res.size).to eq 1
             expect(res[plan1_provider1.id][:price]).to eq 2385.6 + 4766.4
@@ -440,14 +441,14 @@ RSpec.describe MeasuredRate, type: :model do
 
         context '3段階目の場合' do
           it '最小値の場合、価格計算が妥当であること' do
-            res = MeasuredRate.calc_prices(301)
+            res = MeasuredRate.calc_prices(plans_hash, 301)
 
             expect(res.size).to eq 1
             expect(res[plan1_provider1.id][:price]).to eq 2385.6 + 4766.4 + 30.57
           end
 
           it '最小値以上の場合、価格計算が妥当であること' do
-            res = MeasuredRate.calc_prices(500)
+            res = MeasuredRate.calc_prices(plans_hash, 500)
 
             expect(res.size).to eq 1
             expect(res[plan1_provider1.id][:price]).to eq 2385.6 + 4766.4 + 6114
@@ -467,7 +468,7 @@ RSpec.describe MeasuredRate, type: :model do
         end
 
         it '使用量の条件に合致する複数のプランが集計されること' do
-          res = MeasuredRate.calc_prices(301)
+          res = MeasuredRate.calc_prices(plans_hash, 301)
 
           expect(res.size).to eq 3
           expect(res[plan1_provider1.id][:price]).to eq 7840
