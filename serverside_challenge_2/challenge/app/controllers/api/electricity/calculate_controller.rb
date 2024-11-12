@@ -16,6 +16,6 @@ class Api::Electricity::CalculateController < ApplicationController
   end
 
   def price_calculate
-    @prices = Plan.calc_prices(create_params[:amperage], create_params[:electricity_usage_kwh])
+    @prices = Plan.calc_plans(create_params[:amperage], create_params[:electricity_usage_kwh])
   end
 end
